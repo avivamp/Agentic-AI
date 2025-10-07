@@ -1,17 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from app.logging_config import setup_logging
-
-# Setup logging before anything else
-setup_logging()
-
-from fastapi.middleware.cors import CORSMiddleware
 from app.middleware.logging import LoggingMiddleware
-from .routers import search, agentic_search, metrics  # import after logging is set
+from .routers import search, agentic_search, metrics
+
+setup_logging()
 
 app = FastAPI(title="Agentic AI Search API", version="0.1.0")
 app.add_middleware(LoggingMiddleware)
 
-# list every domain that can host your merchants
 ALLOWED_DOMAIN_SUFFIXES = [
     ".lovable.app",
     ".onrender.com",
@@ -23,14 +20,8 @@ ALLOWED_DOMAIN_SUFFIXES = [
 
 @app.middleware("http")
 async def dynamic_cors_middleware(request: Request, call_next):
-    """
-    Dynamically mirrors the request Origin header for known domains.
-    This ensures merchants using custom frontends (Lovable, Aeroshop SDKs, etc.)
-    always get a valid CORS response, without manual updates.
-    """
     origin = request.headers.get("origin")
     response = await call_next(request)
-
     if origin and any(suffix in origin for suffix in ALLOWED_DOMAIN_SUFFIXES):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
@@ -38,20 +29,19 @@ async def dynamic_cors_middleware(request: Request, call_next):
             "Content-Type, Authorization, X-Client-Info, ApiKey"
         )
         response.headers["Access-Control-Allow-Credentials"] = "true"
-
     return response
 
+# ----------------------------------------------------------
+# Routers
+# ----------------------------------------------------------
+app.include_router(search.router)
+app.include_router(agentic_search.router)
+app.include_router(metrics.router)
 
 # ----------------------------------------------------------
-# Explicit OPTIONS handler
+# Universal OPTIONS handler (registered *after* routers)
 # ----------------------------------------------------------
-@app.options("/{rest_of_path:path}")
-async def options_handler(request: Request, rest_of_path: str):
-    """
-    Handles all preflight (OPTIONS) CORS requests explicitly.
-    Equivalent to:
-        if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-    """
+async def global_options_handler(request: Request):
     origin = request.headers.get("origin")
     headers = {
         "Access-Control-Allow-Origin": origin or "*",
@@ -61,14 +51,12 @@ async def options_handler(request: Request, rest_of_path: str):
     }
     return JSONResponse(status_code=200, content=None, headers=headers)
 
+# Register globally so all OPTIONS paths are caught
+app.add_api_route("/{rest_of_path:path}", global_options_handler, methods=["OPTIONS"])
 
-
-# Routers
-app.include_router(search.router)
-app.include_router(agentic_search.router)
-app.include_router(metrics.router)
-
-
+# ----------------------------------------------------------
+# Health endpoints
+# ----------------------------------------------------------
 @app.get("/")
 def root():
     return {"message": "Backend is running"}
