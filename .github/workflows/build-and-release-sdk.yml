@@ -23,11 +23,11 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        working-directory: ./ui
+        working-directory: ./UI
         run: npm ci
 
       - name: Build UI SDK
-        working-directory: ./ui
+        working-directory: ./UI
         run: npm run build
 
       - name: Copy build artifacts to /dist
