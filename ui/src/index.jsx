@@ -6,7 +6,7 @@ import FloatingChat from "./components/FloatingChat";
 import { loadAgenticConfig } from "./config";
 import { on, emit } from "./events/eventBus";
 
-const SDK_VERSION = "3.0.3";
+const SDK_VERSION = "3.0.4";
 
 /**
  * Initialize Agentic AI SDK
@@ -14,62 +14,86 @@ const SDK_VERSION = "3.0.3";
  * @param {string} userConfig.apiBaseUrl - Backend API base URL
  * @param {string} userConfig.merchantId - Merchant ID
  * @param {string} [userConfig.uiMode="both"] - "inline" | "floating" | "both"
+ * @param {string} [userConfig.targetSelector="#agentic-chat-container"] - DOM selector for where to mount
  * @param {string} [userConfig.customCssUrl] - Optional external CSS for theming
  */
 function init(userConfig = {}) {
-  console.group(`[AgenticAI SDK v${SDK_VERSION}]`);
-  console.log("Initializing AgenticAI SDK...");
-  const { uiMode = "both" } = userConfig;
-  console.log(`UI mode selected: ${uiMode}`);
-  loadAgenticConfig(userConfig);
+  console.group(`[AgenticAI SDK v${SDK_VERSION}] Initializing...`);
 
-  // Remove any existing chat container to avoid duplicates
-  const existing = document.getElementById("agentic-container");
-  if (existing) {
-    console.warn("[AgenticAI SDK] Existing instance found. Reinitializing...");
-    existing.remove();
+  const {
+    uiMode = "both",
+    targetSelector = "#agentic-chat-container",
+  } = userConfig;
+
+  loadAgenticConfig(userConfig);
+  console.log("UI Mode:", uiMode);
+  console.log("Target selector:", targetSelector);
+
+  // Look for merchant-defined container
+  let container = document.querySelector(targetSelector);
+
+  // If not found, create automatically
+  if (!container) {
+    console.warn(
+      `[AgenticAI SDK] No container found for selector ${targetSelector}, creating automatically.`
+    );
+    container = document.createElement("div");
+    container.id = targetSelector.replace("#", "");
+    document.body.appendChild(container);
   }
 
-  // Create root container for chat components
-  const container = document.createElement("div");
-  container.id = "agentic-container";
-  document.body.appendChild(container);
+  // Remove any previous root to avoid duplicates
+  if (container.__agenticRoot) {
+    console.warn("[AgenticAI SDK] Existing root found. Reinitializing...");
+    try {
+      container.__agenticRoot.unmount();
+    } catch (e) {
+      console.error("Error unmounting previous root:", e);
+    }
+  }
 
-  // Render chat UI based on mode
+  // Mount the React components
   const root = ReactDOM.createRoot(container);
+  container.__agenticRoot = root;
 
   root.render(
     <AIProvider>
       {uiMode === "inline" && (
         <>
-          <InlineChat />
           {console.log("[AgenticAI SDK] Rendering InlineChat only")}
+          <InlineChat />
         </>
       )}
       {uiMode === "floating" && (
         <>
-          <FloatingChat />
           {console.log("[AgenticAI SDK] Rendering FloatingChat only")}
+          <FloatingChat />
         </>
       )}
       {uiMode === "both" && (
         <>
+          {console.log("[AgenticAI SDK] Rendering both InlineChat & FloatingChat")}
           <InlineChat />
           <FloatingChat />
-          {console.log("[AgenticAI SDK] Rendering both InlineChat & FloatingChat")}
         </>
       )}
     </AIProvider>
   );
 
-  console.log("[AgenticAI SDK] Chat components mounted successfully.");
+  console.log(`[AgenticAI SDK] Mounted inside:`, container);
   console.groupEnd();
 }
 
-/** Safe global export for CDN & ES environments */
+/** Attach global object for UMD / CDN usage */
 const AgenticGlobal = typeof globalThis !== "undefined" ? globalThis : window;
 if (!AgenticGlobal.AgenticAI) AgenticGlobal.AgenticAI = {};
-Object.assign(AgenticGlobal.AgenticAI, { init, on, emit, version: SDK_VERSION });
+Object.assign(AgenticGlobal.AgenticAI, {
+  init,
+  on,
+  emit,
+  version: SDK_VERSION,
+});
 
-console.log(`[AgenticAI SDK v${SDK_VERSION}] Global attached:`, AgenticGlobal.AgenticAI);
+console.log(`[AgenticAI SDK v${SDK_VERSION}] Global object attached: window.AgenticAI`);
+
 export { init, on, emit };
