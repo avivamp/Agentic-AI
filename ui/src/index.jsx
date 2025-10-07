@@ -1,9 +1,11 @@
-import { loadAgenticConfig } from './config';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
 import { AIProvider } from './context/AIContext';
 import InlineChat from './components/InlineChat';
 import FloatingChat from './components/FloatingChat';
+import { loadAgenticConfig } from './config';
 
-export function initAgenticAI(userConfig = {}) {
+export function init(userConfig = {}) {
   loadAgenticConfig(userConfig);
 
   const container = document.createElement('div');
@@ -17,5 +19,5 @@ export function initAgenticAI(userConfig = {}) {
   );
 }
 
-// Expose globally
-window.AgenticAI = { init: initAgenticAI };
+// global exposure
+window.AgenticAI = { init };
