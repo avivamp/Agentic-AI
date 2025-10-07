@@ -12,22 +12,56 @@ app = FastAPI(title="Agentic AI Search API", version="0.1.0")
 app.add_middleware(LoggingMiddleware)
 
 # list every domain that can host your merchants
-allowed_origins = [
-    "https://preview--inflight-wishlist.lovable.app",
-    "https://inflight-wishlist.lovable.app",
-    "https://agnetic-ai.onrender.com",
-    "http://localhost",
-    "http://127.0.0.1:5173",
+ALLOWED_DOMAIN_SUFFIXES = [
+    ".lovable.app",
+    ".onrender.com",
+    ".aeroshop.ai",
+    ".github.io",
+    "localhost",
+    "127.0.0.1",
 ]
 
-# CORS for local dev / RN emulators
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.middleware("http")
+async def dynamic_cors_middleware(request: Request, call_next):
+    """
+    Dynamically mirrors the request Origin header for known domains.
+    This ensures merchants using custom frontends (Lovable, Aeroshop SDKs, etc.)
+    always get a valid CORS response, without manual updates.
+    """
+    origin = request.headers.get("origin")
+    response = await call_next(request)
+
+    if origin and any(suffix in origin for suffix in ALLOWED_DOMAIN_SUFFIXES):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = (
+            "Content-Type, Authorization, X-Client-Info, ApiKey"
+        )
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+
+    return response
+
+
+# ----------------------------------------------------------
+# Explicit OPTIONS handler
+# ----------------------------------------------------------
+@app.options("/{rest_of_path:path}")
+async def options_handler(request: Request, rest_of_path: str):
+    """
+    Handles all preflight (OPTIONS) CORS requests explicitly.
+    Equivalent to:
+        if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+    """
+    origin = request.headers.get("origin")
+    headers = {
+        "Access-Control-Allow-Origin": origin or "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+        "Access-Control-Allow-Credentials": "true",
+    }
+    return JSONResponse(status_code=200, content=None, headers=headers)
+
+
 
 # Routers
 app.include_router(search.router)
