@@ -1,12 +1,15 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { loadAgenticConfig } from './config';
 import { AIProvider } from './context/AIContext';
 import InlineChat from './components/InlineChat';
 import FloatingChat from './components/FloatingChat';
-import './styles.css';
 
-function AgenticDualChat() {
-  return (
+export function initAgenticAI(userConfig = {}) {
+  loadAgenticConfig(userConfig);
+
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  ReactDOM.createRoot(container).render(
     <AIProvider>
       <InlineChat />
       <FloatingChat />
@@ -14,6 +17,5 @@ function AgenticDualChat() {
   );
 }
 
-const container = document.createElement('div');
-document.body.appendChild(container);
-ReactDOM.createRoot(container).render(<AgenticDualChat />);
+// Expose globally
+window.AgenticAI = { init: initAgenticAI };
