@@ -6,73 +6,52 @@ import FloatingChat from "./components/FloatingChat";
 import { loadAgenticConfig } from "./config";
 import { on, emit } from "./events/eventBus";
 
-const SDK_VERSION = "3.0.4";
+const SDK_VERSION = "3.0.5";
 
-/**
- * Initialize Agentic AI SDK
- * @param {Object} userConfig - Merchant configuration
- * @param {string} userConfig.apiBaseUrl - Backend API base URL
- * @param {string} userConfig.merchantId - Merchant ID
- * @param {string} [userConfig.uiMode="both"] - "inline" | "floating" | "both"
- * @param {string} [userConfig.targetSelector="#agentic-chat-container"] - DOM selector for where to mount
- * @param {string} [userConfig.customCssUrl] - Optional external CSS for theming
- */
 function init(userConfig = {}) {
   console.group(`[AgenticAI SDK v${SDK_VERSION}] Initializing...`);
 
   const {
     uiMode = "both",
-    targetSelector = "#agentic-chat-container",
+    targetSelector = "#agentic-chat-container", // 👈 default merchant container
   } = userConfig;
 
   loadAgenticConfig(userConfig);
   console.log("UI Mode:", uiMode);
   console.log("Target selector:", targetSelector);
 
-  // Look for merchant-defined container
+  // ✅ Look for merchant container first
   let container = document.querySelector(targetSelector);
 
-  // If not found, create automatically
+  // ✅ If not found, create automatically at end of <body>
   if (!container) {
     console.warn(
-      `[AgenticAI SDK] No container found for selector ${targetSelector}, creating automatically.`
+      `[AgenticAI SDK] No container found for ${targetSelector}, creating automatically.`
     );
     container = document.createElement("div");
     container.id = targetSelector.replace("#", "");
     document.body.appendChild(container);
   }
 
-  // Remove any previous root to avoid duplicates
+  // 🧹 Clean up any previous root
   if (container.__agenticRoot) {
-    console.warn("[AgenticAI SDK] Existing root found. Reinitializing...");
     try {
       container.__agenticRoot.unmount();
     } catch (e) {
-      console.error("Error unmounting previous root:", e);
+      console.warn("[AgenticAI SDK] Error unmounting previous root", e);
     }
   }
 
-  // Mount the React components
+  // ✅ Mount React into the *merchant’s container*
   const root = ReactDOM.createRoot(container);
   container.__agenticRoot = root;
 
   root.render(
     <AIProvider>
-      {uiMode === "inline" && (
-        <>
-          {console.log("[AgenticAI SDK] Rendering InlineChat only")}
-          <InlineChat />
-        </>
-      )}
-      {uiMode === "floating" && (
-        <>
-          {console.log("[AgenticAI SDK] Rendering FloatingChat only")}
-          <FloatingChat />
-        </>
-      )}
+      {uiMode === "inline" && <InlineChat />}
+      {uiMode === "floating" && <FloatingChat />}
       {uiMode === "both" && (
         <>
-          {console.log("[AgenticAI SDK] Rendering both InlineChat & FloatingChat")}
           <InlineChat />
           <FloatingChat />
         </>
@@ -80,20 +59,15 @@ function init(userConfig = {}) {
     </AIProvider>
   );
 
-  console.log(`[AgenticAI SDK] Mounted inside:`, container);
+  console.log(`[AgenticAI SDK] Mounted successfully in container:`, container);
   console.groupEnd();
 }
 
-/** Attach global object for UMD / CDN usage */
+// Expose global
 const AgenticGlobal = typeof globalThis !== "undefined" ? globalThis : window;
 if (!AgenticGlobal.AgenticAI) AgenticGlobal.AgenticAI = {};
-Object.assign(AgenticGlobal.AgenticAI, {
-  init,
-  on,
-  emit,
-  version: SDK_VERSION,
-});
+Object.assign(AgenticGlobal.AgenticAI, { init, on, emit, version: SDK_VERSION });
 
-console.log(`[AgenticAI SDK v${SDK_VERSION}] Global object attached: window.AgenticAI`);
+console.log(`[AgenticAI SDK v${SDK_VERSION}] Global attached as window.AgenticAI`);
 
 export { init, on, emit };
