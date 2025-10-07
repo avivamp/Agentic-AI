@@ -1,9 +1,7 @@
 name: Backend CI + SDK Generator
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:  # allows manual trigger
 
 jobs:
   build:
