@@ -1,0 +1,64 @@
+name: Build & Release Agentic Chat SDK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # allows manual trigger
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ./ui
+        run: npm ci
+
+      - name: Build UI SDK
+        working-directory: ./ui
+        run: npm run build
+
+      - name: Copy build artifacts to /dist
+        run: |
+          mkdir -p dist
+          cp -r ui/dist/* dist/
+
+      - name: Auto tag version
+        id: version
+        run: |
+          VERSION="v$(date +'%Y.%m.%d.%H%M')"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "✅ New SDK version: $VERSION"
+
+      - name: Commit and push dist files
+        run: |
+          git config user.name "Agentic-AI Bot"
+          git config user.email "bot@aeroshop.ai"
+          git add dist
+          git commit -m "Build SDK $VERSION [skip ci]" || echo "No changes to commit"
+          git tag $VERSION
+          git push origin main --tags
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: "Agentic Chat SDK ${{ env.VERSION }}"
+          body: |
+            This release includes the latest UI SDK build.
+            Access it instantly via jsDelivr:
+            ```
+            https://cdn.jsdelivr.net/gh/${{ github.repository }}@${{ env.VERSION }}/dist/agentic-ai.umd.js
+            ```
