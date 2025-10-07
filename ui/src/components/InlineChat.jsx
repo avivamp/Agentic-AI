@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { useAI } from '../context/AIContext';
-import { sendMessage } from '../services/agenticAPI';
 import { getAgenticConfig } from '../config';
 
 export default function InlineChat() {
   const { state, dispatch } = useAI();
   const [query, setQuery] = useState('');
+  const { apiBaseUrl } = getAgenticConfig();
 
   const handleSend = async () => {
-    const { apiBaseUrl } = getAgenticConfig();
-    const url = `${apiBaseUrl}/agentic-chat/respond`;
-  
-    const res = await fetch(url, {
+    if (!query.trim()) return;
+    dispatch({ type: 'ADD_MESSAGE', payload: { type: 'user', text: query } });
+    setQuery('');
+
+    const res = await fetch(`${apiBaseUrl}/agentic-chat/respond`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, context: state.context })
@@ -21,16 +22,18 @@ export default function InlineChat() {
   };
 
   return (
-    <div className="inline-chat bg-white shadow-sm border rounded-lg p-3 mb-4">
+    <div className="agentic-inline-chat">
       <div className="flex gap-2">
         <input
-          className="flex-1 border p-2 rounded-lg"
-          placeholder="Ask for perfumes that help with sleep..."
+          className="agentic-input"
+          placeholder="Ask something..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
         />
-        <button onClick={handleSend} className="bg-blue-600 text-white px-4 rounded-lg">Ask</button>
+        <button onClick={handleSend} className="bg-[var(--agentic-primary)] text-white px-4 rounded-lg">
+          Ask
+        </button>
       </div>
     </div>
   );
