@@ -1,24 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AgenticChatBubble from './AgenticChatBubble';
 import AgenticChatCTA from './AgenticChatCTA';
 import { motion } from 'framer-motion';
+import { useAgenticMessages } from '../hooks/useAgenticMessages';
 
 export default function AgenticChatCompanion() {
-  const [messages, setMessages] = useState([
-    { message: "Hi there 👋 How can I help you shop today?", type: "bot" }
-  ]);
   const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    window.addEventListener('agentic:addToCart', (e) => {
-      const { product_name } = e.detail;
-      setMessages((m) => [
-        ...m,
-        { message: `✅ Added ${product_name} to your cart!`, type: "bot" },
-        { message: "Would you like to checkout now or see similar items?", type: "bot" }
-      ]);
-    });
-  }, []);
+  const [messages, setMessages] = useAgenticMessages([
+    { message: 'Hi there 👋 How can I help you shop today?', type: 'bot' }
+  ]);
 
   return (
     <div className="fixed bottom-5 right-5 z-50">

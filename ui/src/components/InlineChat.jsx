@@ -1,71 +1,29 @@
-import React, { useState, useRef, useEffect } from "react";
-import { getAgenticConfig } from "../config";
+import React from "react";
 import { useAI } from "../context/AIContext";
-import { emit } from "../events/eventBus";
 import ChatBubble from "./AgenticChatBubble";
+import { useInlineChat } from '../hooks/useInlineChat';
 
 export default function InlineChat() {
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
   const { state, dispatch } = useAI();
-  const { apiBaseUrl, merchantId } = getAgenticConfig();
-  const chatEndRef = useRef(null);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [state.messages]);
-
-  const handleSend = async () => {
-    const text = query.trim();
-    if (!text) return;
-
-    dispatch({ type: "ADD_MESSAGE", payload: { type: "user", text } });
-    emit("chatMessage", { text, sender: "user" });
-    setQuery("");
-    setLoading(true);
-
-    try {
-      const res = await fetch(`${apiBaseUrl}/agentic-search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: text,
-          merchant_id: merchantId,
-          limit: 10,
-          offset: 0,
-        }),
-      });
-      const data = await res.json();
-
-      emit("searchResults", { results: data.results || [], query: text });
-      const summary = `Found ${data.results?.length || 0} products for “${text}”.`;
-      dispatch({ type: "ADD_MESSAGE", payload: { type: "bot", text: summary } });
-      emit("chatMessage", { text: summary, sender: "bot" });
-    } catch (err) {
-      const msg = "⚠️ Sorry, I couldn’t fetch results right now.";
-      dispatch({ type: "ADD_MESSAGE", payload: { type: "bot", text: msg } });
-      emit("chatMessage", { text: msg, sender: "bot" });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { query, setQuery, loading, chatEndRef, handleSend } = useInlineChat(state, dispatch);
 
   return (
     <div
       id="agentic-inline-chat"
-      className="bg-gray-900/80 border border-gray-700 rounded-2xl shadow-xl p-4 max-w-2xl mx-auto my-4 flex flex-col space-y-3 backdrop-blur"
+      className="agentic-inline-chat w-full max-w-2xl mx-auto space-y-4"
       data-agentic-inline="true"
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-700 pb-2">
-        <h2 className="text-base font-semibold text-white flex items-center gap-1">
-          🛍️ Agentic Shopping Assistant
+      <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 tracking-wide">
+          <span className="inline-block bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-full px-2 py-1 text-xs font-semibold mr-2">AI</span>
+          Agentic Shopping Assistant
         </h2>
-        <span className="text-xs text-gray-400">Powered by Aeroshop AI ✈️</span>
+        <span className="text-xs text-gray-500">Powered by Aeroshop AI ✈️</span>
       </div>
 
       {/* Chat Area */}
-      <div className="flex flex-col gap-2 overflow-y-auto max-h-72 pr-1 scroll-smooth">
+      <div className="p-4 max-h-60 overflow-y-auto space-y-3 bg-white/80 rounded-xl shadow border border-gray-100">
         {state.messages.length === 0 && (
           <p className="text-gray-400 text-sm text-center mt-4 italic">
             Ask me anything — e.g. “show me baby perfumes under 100 AED”
@@ -89,59 +47,39 @@ export default function InlineChat() {
       </div>
 
       {/* Input Box */}
-      <div className="flex items-center gap-2 border-t border-gray-700 pt-3">
+      <div className="flex gap-2 pt-3">
         <input
-          className="flex-1 rounded-full px-4 py-2 text-sm text-gray-100 bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
-          placeholder="Type your question..."
+          className="agentic-input flex-1 rounded-full px-4 py-2 text-base text-gray-900 bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+          placeholder="Ask me anything about products..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          disabled={loading}
         />
         <button
           onClick={handleSend}
-          disabled={loading}
-          className={`transition-transform active:scale-95 rounded-full p-2 ${
+          disabled={loading || !query.trim()}
+          className={`transition-transform active:scale-95 rounded-full p-3 ${
             loading
-              ? "opacity-50 bg-gray-700"
+              ? "opacity-50 bg-gray-300"
               : "bg-blue-600 hover:bg-blue-700 text-white"
           }`}
           title="Send"
         >
-          {loading ? (
-            <svg
-              className="animate-spin h-5 w-5 text-white"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8z"
-              ></path>
-            </svg>
-          ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4 4l16 8-16 8V4z"
-              />
-            </svg>
-          )}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 4l16 8-16 8V4z"
+            />
+          </svg>
         </button>
       </div>
     </div>

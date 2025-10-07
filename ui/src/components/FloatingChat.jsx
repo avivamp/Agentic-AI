@@ -1,33 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAI } from "../context/AIContext";
 import ChatBubble from "./AgenticChatBubble";
 import { emit } from "../events/eventBus";
+import { useFloatingChatEvents } from '../hooks/useFloatingChatEvents';
 
-/**
- * FloatingChat.jsx
- * Persistent assistant that reacts to system events (add-to-cart, checkout).
- * Shares context with InlineChat through AIProvider.
- */
 export default function FloatingChat() {
   const { state, dispatch } = useAI();
   const [open, setOpen] = useState(false);
+  useFloatingChatEvents(dispatch, emit, setOpen);
 
-  // Listen for system events like addToCart fired by merchant
-  useEffect(() => {
-    const handleAddToCart = (e) => {
-      const { productId, name, price } = e.detail || {};
-      const message = `✅ Added ${name || "an item"} to your cart for ${price || ""}. Want to checkout?`;
-      dispatch({ type: "ADD_MESSAGE", payload: { type: "bot", text: message } });
-      emit("chatMessage", { text: message, sender: "bot" });
-      emit("addToCart", { productId, name, price });
-      setOpen(true);
-    };
-
-    window.addEventListener("agentic:addToCart", handleAddToCart);
-    return () => window.removeEventListener("agentic:addToCart", handleAddToCart);
-  }, [dispatch]);
-
-  // Handle checkout CTA click
   const handleCheckout = () => {
     const msg = "Redirecting to checkout...";
     dispatch({ type: "ADD_MESSAGE", payload: { type: "bot", text: msg } });
