@@ -22,16 +22,15 @@ export default function FloatingChat() {
   }, [dispatch]);
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
-      {!open && (
+    <div className="fixed bottom-5 right-5 z-50 agentic-chat-widget">
+      {!open ? (
         <button
-          className="bg-blue-600 text-white p-4 rounded-full shadow-lg"
+          className="bg-[var(--agentic-primary)] text-white p-4 rounded-full shadow-lg"
           onClick={() => setOpen(true)}
         >💬</button>
-      )}
-      {open && (
+      ) : (
         <div className="bg-white rounded-2xl shadow-xl w-80 h-96 flex flex-col">
-          <div className="flex justify-between items-center bg-blue-600 text-white p-3 rounded-t-2xl">
+          <div className="agentic-chat-header flex justify-between items-center">
             <span>Agentic Assistant</span>
             <button onClick={() => setOpen(false)}>✕</button>
           </div>
