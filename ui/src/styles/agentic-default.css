@@ -30,7 +30,16 @@
 }
 
 .agentic-inline-chat {
-  margin-bottom: 10px;
+  font-family: 'Inter', sans-serif;
+}
+
+.agentic-inline-chat input {
+  transition: all 0.2s ease-in-out;
+}
+
+.agentic-inline-chat input:focus {
+  border-color: var(--agentic-primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.2);
 }
 
 .agentic-input {
