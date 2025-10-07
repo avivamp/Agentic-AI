@@ -24,7 +24,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./UI
-        run: npm ci
+        run: npm install
 
       - name: Build UI SDK
         working-directory: ./UI
