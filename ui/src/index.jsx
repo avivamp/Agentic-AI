@@ -4,6 +4,7 @@ import { AIProvider } from './context/AIContext';
 import InlineChat from './components/InlineChat';
 import FloatingChat from './components/FloatingChat';
 import { loadAgenticConfig } from './config';
+import { on, emit } from './events/eventBus';
 
 export function init(userConfig = {}) {
   loadAgenticConfig(userConfig);
@@ -19,5 +20,4 @@ export function init(userConfig = {}) {
   );
 }
 
-// global exposure
-window.AgenticAI = { init };
+window.AgenticAI = { init, on, emit };
