@@ -6,19 +6,18 @@ import FloatingChat from "./components/FloatingChat";
 import { loadAgenticConfig } from "./config";
 import { on, emit } from "./events/eventBus";
 
-/**
- * Initialize Agentic AI SDK
- * Called by merchants via AgenticAI.init({ ...config })
- */
+const SDK_VERSION = "3.0.2";
+
 function init(userConfig = {}) {
-  console.log("[AgenticAI SDK] Initializing with config:", userConfig);
+  console.log(`[AgenticAI SDK v${SDK_VERSION}] Initializing…`);
   loadAgenticConfig(userConfig);
 
-  const existing = document.getElementById("agentic-container");
+  const id = "agentic-container";
+  const existing = document.getElementById(id);
   if (existing) existing.remove();
 
   const container = document.createElement("div");
-  container.id = "agentic-container";
+  container.id = id;
   document.body.appendChild(container);
 
   ReactDOM.createRoot(container).render(
@@ -28,20 +27,12 @@ function init(userConfig = {}) {
     </AIProvider>
   );
 
-  console.log("[AgenticAI SDK] Chat components mounted successfully.");
+  console.log("[AgenticAI SDK] Chat components mounted.");
 }
 
-/**
- * Global Exposure
- * This ensures window.AgenticAI is always available after SDK load.
- */
-window.AgenticAI = {
-  init,
-  on,
-  emit,
-};
+// ✅ Safe global attach
+const AgenticGlobal = typeof globalThis !== "undefined" ? globalThis : window;
+if (!AgenticGlobal.AgenticAI) AgenticGlobal.AgenticAI = {};
+Object.assign(AgenticGlobal.AgenticAI, { init, on, emit, version: SDK_VERSION });
 
-// For module imports (ESM / CommonJS)
 export { init, on, emit };
-
-console.log("[AgenticAI SDK] Global object attached:", window.AgenticAI);
