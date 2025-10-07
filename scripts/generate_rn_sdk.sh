@@ -1,36 +1,55 @@
-#!/usr/bin/env bash
-set -euo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$HERE/.." && pwd)"
-SPEC="$ROOT/contracts/openapi.yaml"
-OUT="$ROOT/sdk-react-native"
+import subprocess
+import os
+import json
+from datetime import datetime
 
-if ! command -v openapi-generator-cli >/dev/null 2>&1; then
-  echo "Please install openapi-generator-cli first: npm i -g @openapitools/openapi-generator-cli"
-  exit 1
-fi
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+UI_DIR = os.path.join(ROOT_DIR, "ui")
+BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
+DIST_DIR = os.path.join(ROOT_DIR, "dist")
 
-rm -rf "$OUT"
-openapi-generator-cli generate -i "$SPEC" -g typescript-fetch -o "$OUT"
+def run(cmd, cwd=None):
+    print(f"🚀 Running: {' '.join(cmd)}")
+    subprocess.run(cmd, cwd=cwd, check=True)
 
-# Add package.json for RN publish/install
-cat > "$OUT/package.json" <<'JSON'
-{
-  "name": "@aeroshop/agentic-ai-sdk",
-  "version": "0.1.0",
-  "main": "index.js",
-  "types": "index.d.ts",
-  "private": false,
-  "description": "Agentic AI React Native SDK",
-  "author": "AeroShop",
-  "license": "MIT"
-}
-JSON
+def build_ui():
+    print("🧱 Building Agentic Chat Companion UI...")
+    run(["npm", "install"], cwd=UI_DIR)
+    run(["npm", "run", "build"], cwd=UI_DIR)
+    build_path = os.path.join(UI_DIR, "dist")
+    os.makedirs(DIST_DIR, exist_ok=True)
+    for file in os.listdir(build_path):
+        src = os.path.join(build_path, file)
+        dst = os.path.join(DIST_DIR, file)
+        print(f"📦 Copying {file} → dist/")
+        with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
+            fdst.write(fsrc.read())
 
-# Re-export a simple client for nicer DX
-cat > "$OUT/index.ts" <<'TS'
-export * from "./apis";
-export * from "./models";
-TS
+def build_backend():
+    print("⚙️ Packaging backend...")
+    run(["pip", "install", "-r", "requirements.txt"], cwd=BACKEND_DIR)
+    version_file = os.path.join(DIST_DIR, "backend_version.txt")
+    with open(version_file, "w") as f:
+        f.write(f"Backend built: {datetime.now().isoformat()}\n")
 
-echo "✅ React Native SDK generated at: $OUT"
+def create_manifest():
+    print("🗂️ Creating SDK manifest...")
+    manifest = {
+        "name": "Agentic AI SDK",
+        "version": datetime.now().strftime("%Y.%m.%d.%H%M"),
+        "build_time": datetime.now().isoformat(),
+        "frontend": [f for f in os.listdir(DIST_DIR) if f.endswith(".js")],
+        "backend": "FastAPI Service"
+    }
+    with open(os.path.join(DIST_DIR, "manifest.json"), "w") as f:
+        json.dump(manifest, f, indent=2)
+
+def main():
+    print("==== 🧠 Building Agentic-AI SDK (backend + UI) ====")
+    build_ui()
+    build_backend()
+    create_manifest()
+    print("\n✅ Build completed. Artifacts in /dist folder.")
+
+if __name__ == "__main__":
+    main()
