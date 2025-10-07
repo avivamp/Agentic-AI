@@ -1,0 +1,41 @@
+.agentic-chat-widget {
+  background: var(--agentic-bg);
+  color: var(--agentic-text);
+  border-radius: 12px;
+  font-family: system-ui, sans-serif;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.agentic-chat-header {
+  background: var(--agentic-primary);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 12px 12px 0 0;
+}
+
+.agentic-message--bot {
+  background: var(--agentic-bot-bg);
+  color: var(--agentic-bot-text);
+  margin: 4px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.agentic-message--user {
+  background: var(--agentic-user-bg);
+  color: var(--agentic-user-text);
+  margin: 4px 0 4px auto;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.agentic-inline-chat {
+  margin-bottom: 10px;
+}
+
+.agentic-input {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 6px 8px;
+  width: 100%;
+}
