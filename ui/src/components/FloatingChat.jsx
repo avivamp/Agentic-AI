@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAI } from '../context/AIContext';
-import ChatBubble from './ChatBubble';
+import ChatBubble from './AgenticChatBubble';
 
 export default function FloatingChat() {
   const { state, dispatch } = useAI();
