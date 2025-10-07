@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { getAgenticConfig } from "../config";
 import { useAI } from "../context/AIContext";
 import { emit } from "../events/eventBus";
-import ChatBubble from "./ChatBubble";
+import ChatBubble from "./AgenticChatBubble";
 
 export default function InlineChat() {
   const [query, setQuery] = useState("");
