@@ -1,33 +1,26 @@
-// Central event registry: event name, schema, default handler
-
 export const AgenticEventSchema = {
   searchResults: {
-    description: "Fired when Agentic search returns product results.",
+    description: "Fired when search results are returned.",
     required: ["results"],
-    validate: (payload) =>
-      payload && Array.isArray(payload.results),
-    defaultHandler: (data) => console.log("[AgenticAI] Search Results:", data),
+    validate: (p) => p && Array.isArray(p.results),
+    defaultHandler: (p) => console.log("[AgenticAI] Search:", p),
   },
-
   addToCart: {
-    description: "Triggered when a product is added to the cart.",
+    description: "Product added to cart.",
     required: ["productId", "name"],
-    validate: (payload) =>
-      payload && typeof payload.productId === "string" && payload.name,
-    defaultHandler: (data) => console.log("[AgenticAI] Added to cart:", data),
+    validate: (p) => p?.productId && p?.name,
+    defaultHandler: (p) => console.log("[AgenticAI] AddToCart:", p),
   },
-
   checkout: {
-    description: "User initiated checkout flow.",
+    description: "Checkout initiated.",
     required: [],
     validate: () => true,
-    defaultHandler: () => console.log("[AgenticAI] Checkout initiated."),
+    defaultHandler: () => console.log("[AgenticAI] Checkout triggered."),
   },
-
   chatMessage: {
-    description: "Emitted on every chat message (bot or user).",
+    description: "Chat message sent or received.",
     required: ["text", "sender"],
-    validate: (payload) => !!payload.text,
+    validate: (p) => !!p?.text,
     defaultHandler: () => {},
   },
 };
