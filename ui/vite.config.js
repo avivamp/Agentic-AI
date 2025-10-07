@@ -3,39 +3,23 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-
   define: {
-    // Prevent "process is not defined" in browser builds
-    "process.env": {},
+    "process.env": {}, // browser shim
   },
-
   build: {
     lib: {
       entry: "src/index.jsx",
-      name: "AgenticAI", // 👈 This ensures window.AgenticAI global in UMD
+      name: "AgenticAI",
       fileName: (format) => `agentic-ai.${format}.js`,
-      formats: ["umd", "es"],
+      formats: ["umd"],
     },
     rollupOptions: {
-      external: ["react", "react-dom"],
       output: {
-        globals: {
-          react: "React",
-          "react-dom": "ReactDOM",
-        },
+        name: "AgenticAI",
+        extend: true, // ✅ ensures window.AgenticAI extends, not replaces
       },
     },
-    sourcemap: false,
-    minify: true,
-    target: "esnext",
     outDir: "dist",
-  },
-
-  optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: "window",
-      },
-    },
+    minify: true,
   },
 });
