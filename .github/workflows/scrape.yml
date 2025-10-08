@@ -2,8 +2,6 @@ name: Crawl EmiratesRED and build JSON dataset
 
 on:
   workflow_dispatch:        # Manual trigger from GitHub UI
-  schedule:
-    - cron: "0 20 * * *"    # Every day at 8 PM UTC (~midnight Dubai)
 
 jobs:
   scrape:
@@ -26,14 +24,34 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run EmiratesRED scraper
+        id: run_scraper
         working-directory: emiratesred-scraper
-        run: python emiratesred_full_scraper.py
+        run: |
+          echo "🚀 Starting EmiratesRED scraper"
+          python emiratesred_full_scraper.py > scraper_output.txt 2>&1
+          tail -n 20 scraper_output.txt || true
+          echo "✅ Scraper completed"
+
+      - name: Print scraper summary
+        working-directory: emiratesred-scraper
+        run: |
+          echo "### 🧾 EmiratesRED Scraper Summary" >> $GITHUB_STEP_SUMMARY
+          tail -n 20 scraper_output.txt >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload JSON files as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: emiratesred-products
+          path: |
+            emiratesred-scraper/emiratesred_products.json
+            emiratesred-scraper/emiratesred_products.jsonl
+          retention-days: 7
 
       - name: Commit and push updated JSON files
         working-directory: emiratesred-scraper
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add emiratesred_products.jsonl emiratesred_products.json
+          git add emiratesred_products.jsonl emiratesred_products.json || true
           git commit -m "Auto-update EmiratesRED dataset [$(date)]" || echo "No changes to commit"
-          git push
+          git push || echo "No changes to push"
