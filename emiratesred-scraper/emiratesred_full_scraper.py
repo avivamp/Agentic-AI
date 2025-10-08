@@ -12,7 +12,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 BASE = "https://www.emiratesred.com"
 MASTER_URL = f"{BASE}/en-GB/retailer/uae-erp/products"
-HEADERS = {"User-Agent": "EmiratesRED-Scraper/2.2 (contact: your_email@example.com)"}
+HEADERS = {"User-Agent": "EmiratesRED-Scraper/3.0 (contact: your_email@example.com)"}
 
 RATE_LIMIT = 1.5  # seconds between requests
 requests_cache.install_cache("emiratesred_cache", expire_after=86400)
@@ -39,10 +39,10 @@ def get_soup(url: str):
 # PAGE PARSERS
 # ----------------------------------------------------------------------
 def extract_products_from_listing(url):
-    """Extract all product links from a listing page and detect next page robustly"""
+    """Extract all product links from a listing page"""
     soup = get_soup(url)
     if not soup:
-        return [], None
+        return []
 
     products = []
     for a in soup.select("a[href*='/product/']"):
@@ -52,31 +52,7 @@ def extract_products_from_listing(url):
             name = a.get_text(" ", strip=True)
             products.append({"name": name, "url": full_url})
 
-    # --- FIXED PAGINATION DETECTION ---
-    next_page = None
-    next_link = soup.find("a", string=re.compile("Next|›|»", re.I))
-    if not next_link:
-        # Look for numbered pagination links
-        page_links = [
-            urljoin(BASE, a["href"])
-            for a in soup.select("a[href*='?page=']")
-            if a.get("href")
-        ]
-        if page_links:
-            current_page_match = re.search(r"[?&]page=(\d+)", url)
-            current_page = int(current_page_match.group(1)) if current_page_match else 1
-            next_candidates = []
-            for link in page_links:
-                m = re.search(r"[?&]page=(\d+)", link)
-                if m and int(m.group(1)) > current_page:
-                    next_candidates.append((int(m.group(1)), link))
-            if next_candidates:
-                next_candidates.sort()
-                next_page = next_candidates[0][1]
-    elif next_link.get("href"):
-        next_page = urljoin(BASE, next_link["href"])
-
-    return products, next_page
+    return products
 
 
 def extract_product_details(url):
@@ -170,15 +146,21 @@ def extract_product_details(url):
 # ----------------------------------------------------------------------
 def main():
     print(f"[START] Crawling EmiratesRED master listing: {MASTER_URL}")
-    page = MASTER_URL
     seen = set()
     total_products = 0
     page_num = 1
 
     with open("emiratesred_products.jsonl", "w", encoding="utf-8") as f:
-        while page:
-            print(f"\n[PAGE {page_num}] {page}")
-            items, next_page = extract_products_from_listing(page)
+        while True:
+            # Construct URL for each page
+            page_url = f"{MASTER_URL}?page={page_num}" if page_num > 1 else MASTER_URL
+            print(f"\n[PAGE {page_num}] {page_url}")
+
+            items = extract_products_from_listing(page_url)
+            if not items:
+                print("No more products found. Stopping.")
+                break
+
             print(f"  → Found {len(items)} products on this page")
 
             for item in tqdm(items, desc=f"Scraping Page {page_num}", leave=False):
@@ -200,7 +182,7 @@ def main():
                     "short_description": "",
                     "images": details.get("images"),
                     "product_url": item["url"],
-                    "source_url": page,
+                    "source_url": page_url,
                     "retailer": "",
                     "text_to_embed": "",
                 }
@@ -208,15 +190,13 @@ def main():
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
                 time.sleep(RATE_LIMIT)
 
-            page = next_page
             page_num += 1
-            if page:
-                time.sleep(RATE_LIMIT)
+            time.sleep(RATE_LIMIT)
 
     print(f"\n✅ Completed: {total_products} total products scraped.")
     print("✅ Saved emiratesred_products.jsonl")
 
-    # Convert to JSON array
+    # Convert to JSON array for analytics
     with open("emiratesred_products.jsonl", "r", encoding="utf-8") as infile:
         data = [json.loads(line) for line in infile]
     with open("emiratesred_products.json", "w", encoding="utf-8") as outfile:
