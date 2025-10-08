@@ -1,7 +1,7 @@
 name: Crawl EmiratesRED and build JSON dataset
 
 on:
-  workflow_dispatch:        # Allow manual trigger from GitHub UI
+  workflow_dispatch:        # Manual trigger
   schedule:
     - cron: "0 20 * * *"    # Every day at 8 PM UTC (~midnight Dubai)
 
@@ -9,7 +9,7 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # Allows committing JSON files back to repo
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -18,15 +18,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: ./emiratesred-scraper
+        working-directory: emiratesred-scraper
         run: |
           pip install -r requirements.txt
 
       - name: Run EmiratesRED scraper
-        working-directory: ./emiratesred-scraper
+        working-directory: emiratesred-scraper
         run: |
           python emiratesred_full_scraper.py
 
@@ -41,7 +41,7 @@ print("✅ Also saved emiratesred_products.json (array format)")
 PY
 
       - name: Commit and push updated JSON files
-        working-directory: ./emiratesred-scraper
+        working-directory: emiratesred-scraper
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
