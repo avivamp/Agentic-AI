@@ -29,12 +29,6 @@ jobs:
         working-directory: emiratesred-scraper
         run: python emiratesred_full_scraper.py
 
-      - name: Convert JSONL to JSON
-        working-directory: emiratesred-scraper
-        run: |
-          echo "Converting JSONL → JSON array"
-          python convert_jsonl_to_json.py
-
       - name: Commit and push updated JSON files
         working-directory: emiratesred-scraper
         run: |
