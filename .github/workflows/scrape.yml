@@ -1,0 +1,50 @@
+name: Crawl EmiratesRED and build JSON dataset
+
+on:
+  workflow_dispatch:        # Allow manual trigger from GitHub UI
+  schedule:
+    - cron: "0 20 * * *"    # Every day at 8 PM UTC (~midnight Dubai)
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # Allows committing JSON files back to repo
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        working-directory: ./emiratesred-scraper
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run EmiratesRED scraper
+        working-directory: ./emiratesred-scraper
+        run: |
+          python emiratesred_full_scraper.py
+
+          # Convert JSONL → JSON array for analytics
+          python - <<'PY'
+import json
+with open("emiratesred_products.jsonl", "r", encoding="utf-8") as infile:
+    data = [json.loads(line) for line in infile]
+with open("emiratesred_products.json", "w", encoding="utf-8") as outfile:
+    json.dump(data, outfile, ensure_ascii=False, indent=2)
+print("✅ Also saved emiratesred_products.json (array format)")
+PY
+
+      - name: Commit and push updated JSON files
+        working-directory: ./emiratesred-scraper
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add emiratesred_products.jsonl emiratesred_products.json
+          git commit -m "Auto-update EmiratesRED product dataset [$(date)]" || echo "No changes to commit"
+          git push
