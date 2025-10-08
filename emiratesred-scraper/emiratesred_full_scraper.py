@@ -12,7 +12,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 BASE = "https://www.emiratesred.com"
 MASTER_URL = f"{BASE}/en-GB/retailer/uae-erp/products"
-HEADERS = {"User-Agent": "EmiratesRED-Scraper/2.1 (contact: your_email@example.com)"}
+HEADERS = {"User-Agent": "EmiratesRED-Scraper/2.2 (contact: your_email@example.com)"}
 
 RATE_LIMIT = 1.5  # seconds between requests
 requests_cache.install_cache("emiratesred_cache", expire_after=86400)
@@ -39,7 +39,7 @@ def get_soup(url: str):
 # PAGE PARSERS
 # ----------------------------------------------------------------------
 def extract_products_from_listing(url):
-    """Extract all product links from a listing page and detect pagination"""
+    """Extract all product links from a listing page and detect next page robustly"""
     soup = get_soup(url)
     if not soup:
         return [], None
@@ -52,10 +52,28 @@ def extract_products_from_listing(url):
             name = a.get_text(" ", strip=True)
             products.append({"name": name, "url": full_url})
 
-    # Detect pagination (Next page)
+    # --- FIXED PAGINATION DETECTION ---
     next_page = None
     next_link = soup.find("a", string=re.compile("Next|›|»", re.I))
-    if next_link and next_link.get("href"):
+    if not next_link:
+        # Look for numbered pagination links
+        page_links = [
+            urljoin(BASE, a["href"])
+            for a in soup.select("a[href*='?page=']")
+            if a.get("href")
+        ]
+        if page_links:
+            current_page_match = re.search(r"[?&]page=(\d+)", url)
+            current_page = int(current_page_match.group(1)) if current_page_match else 1
+            next_candidates = []
+            for link in page_links:
+                m = re.search(r"[?&]page=(\d+)", link)
+                if m and int(m.group(1)) > current_page:
+                    next_candidates.append((int(m.group(1)), link))
+            if next_candidates:
+                next_candidates.sort()
+                next_page = next_candidates[0][1]
+    elif next_link.get("href"):
         next_page = urljoin(BASE, next_link["href"])
 
     return products, next_page
@@ -88,7 +106,7 @@ def extract_product_details(url):
     # --- Description ---
     description = None
 
-    # ✅ Primary: React richtext component (used across EmiratesRED)
+    # ✅ Primary: React richtext component
     desc_block = soup.find(attrs={"data-testid": "productDescriptionRichtext"})
     if desc_block and desc_block.get_text(strip=True):
         description = desc_block.get_text(" ", strip=True)
@@ -137,16 +155,12 @@ def extract_product_details(url):
             categories.append(crumb.get_text(strip=True))
     categories = list(dict.fromkeys(categories))
 
-    # --- Short summary for embeddings ---
-    summary = (description[:200] + "...") if description and len(description) > 200 else description
-
     return {
         "name": name,
         "brand": brand,
         "price": price,
         "currency": currency,
         "description": description,
-        "short_description": summary,
         "images": images,
         "categories": categories,
     }
@@ -158,17 +172,22 @@ def main():
     print(f"[START] Crawling EmiratesRED master listing: {MASTER_URL}")
     page = MASTER_URL
     seen = set()
+    total_products = 0
+    page_num = 1
 
     with open("emiratesred_products.jsonl", "w", encoding="utf-8") as f:
         while page:
-            print(f"[PAGE] {page}")
+            print(f"\n[PAGE {page_num}] {page}")
             items, next_page = extract_products_from_listing(page)
-            for item in tqdm(items, desc="Products", leave=False):
+            print(f"  → Found {len(items)} products on this page")
+
+            for item in tqdm(items, desc=f"Scraping Page {page_num}", leave=False):
                 pid = slugify(item["url"])
                 if pid in seen:
                     continue
                 seen.add(pid)
                 details = extract_product_details(item["url"])
+                total_products += 1
 
                 record = {
                     "id": pid,
@@ -178,33 +197,31 @@ def main():
                     "price": details.get("price"),
                     "currency": details.get("currency"),
                     "description": details.get("description"),
-                    "short_description": details.get("short_description"),
+                    "short_description": "",
                     "images": details.get("images"),
                     "product_url": item["url"],
                     "source_url": page,
-                    "retailer": "EmiratesRED",
-                    "text_to_embed": " ".join(
-                        filter(None, [
-                            details.get("name"),
-                            details.get("brand"),
-                            details.get("short_description"),
-                        ])
-                    ),
+                    "retailer": "",
+                    "text_to_embed": "",
                 }
 
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
                 time.sleep(RATE_LIMIT)
+
             page = next_page
+            page_num += 1
             if page:
                 time.sleep(RATE_LIMIT)
 
-    print("✅ Completed: emiratesred_products.jsonl")
+    print(f"\n✅ Completed: {total_products} total products scraped.")
+    print("✅ Saved emiratesred_products.jsonl")
 
-    # Also export as JSON array for analytics
+    # Convert to JSON array
     with open("emiratesred_products.jsonl", "r", encoding="utf-8") as infile:
         data = [json.loads(line) for line in infile]
     with open("emiratesred_products.json", "w", encoding="utf-8") as outfile:
         json.dump(data, outfile, ensure_ascii=False, indent=2)
+
     print("✅ Also saved emiratesred_products.json (array format)")
 
 # ----------------------------------------------------------------------
