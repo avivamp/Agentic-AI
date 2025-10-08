@@ -1,0 +1,116 @@
+📘 Purpose
+
+Enable merchants (e.g., Emirates Red, Dufry, Heinemann) to easily integrate AeroShop Agentic AI modules into their existing web or mobile storefronts with minimal dev effort.
+
+
+🔧 Overview
+
+AeroShop Agentic Suite SDK provides modular components:
+Agentic Search → natural-language product search.
+Agentic Chat → event-driven assistant that reacts to user actions.
+Agentic Recommender → contextual product carousels.
+All modules are independent — merchants can activate only the ones they need.
+
+
+🧩 Installation
+Web Integration (JS/React/Vue)
+<script src="https://cdn.aeroshop.ai/sdk/v2/aeroshop.js"></script>
+<script>
+AeroShop.init({
+  merchant_id: "EMIRATESRED",
+  api_key: "YOUR_MERCHANT_KEY",
+  theme: "dark",
+  locale: "en-GB",
+  modules: ["search", "chat", "recommendations"]
+});
+</script>
+
+Mobile Integration (React Native / Flutter)
+Add dependency:
+npm install aeroshop-sdk
+Initialize in App.js:
+import { AeroShop } from 'aeroshop-sdk';
+AeroShop.init({
+  merchantId: 'EMIRATESRED',
+  apiKey: 'YOUR_KEY',
+  theme: 'light',
+  modules: ['chat', 'search'],
+});
+
+
+📡 Event Hooks
+
+Merchants trigger standardized events from their frontend to make the chat context-aware.
+
+Event	When Triggered	Example Payload
+aeroshop:add_to_cart	On Add-to-Cart click	{ product_id, name, price, currency, image_url }
+aeroshop:remove_from_cart	On cart removal	{ product_id, name }
+aeroshop:checkout_start	When user begins checkout	{ cart_value, item_count }
+aeroshop:purchase_complete	On order confirmation	{ order_id, value, currency }
+
+Example:
+
+window.dispatchEvent(new CustomEvent("aeroshop:add_to_cart", {
+  detail: {
+    product_id: "DF-00123",
+    name: "Chanel No.5 Perfume 50ml",
+    price: 139.0,
+    currency: "USD",
+    image_url: "https://cdn.airline.com/p/df00123.jpg"
+  }
+}));
+
+
+The chat automatically reacts:
+
+“✅ Chanel No.5 added to your cart. Ready to checkout?”
+[View Cart] [Checkout Now]
+
+🛒 Deep Link Configuration
+
+Define cart & checkout URLs in merchant console:
+
+{
+  "deep_links": {
+    "cart": "https://merchant.com/app/cart",
+    "checkout": "https://merchant.com/app/cart/checkout"
+  }
+}
+
+
+🧠 Personalization Context (Optional)
+
+Provide non-sensitive context for personalization.
+
+AeroShop.setContext({
+  trip: { from: "DXB", to: "CDG" },
+  cabin: "Business",
+  loyalty_tier: "Gold"
+});
+
+
+✅ QA Checklist
+Check	Description
+✅ Search API returns relevant products	Agentic Search working
+✅ Chat reacts to add_to_cart	Event hooks working
+✅ Checkout deep link opens	Navigation verified
+✅ Branding matches	SDK theme + logo configured
+✅ Logs visible in merchant dashboard	Analytics connected
+
+
+🔐 Security
+
+No PII required.
+
+API key scoped to merchant domain.
+
+SDK runs sandboxed (no data storage).
+
+HTTPS enforced for all API calls.
+
+
+📈 Deployment
+
+Sandbox: https://sandbox.aeroshop.ai
+
+Production: https://api.aeroshop.ai
