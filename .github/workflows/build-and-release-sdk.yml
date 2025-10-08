@@ -2,9 +2,6 @@ name: Build & Deploy Agentic Chat SDK (No Versioning)
 
 on:
   workflow_dispatch:  # manually trigger via GitHub UI
-  push:
-    branches:
-      - main           # optionally auto-build on main commits
 
 permissions:
   contents: write
