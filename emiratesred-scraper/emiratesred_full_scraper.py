@@ -12,7 +12,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 BASE = "https://www.emiratesred.com"
 MASTER_URL = f"{BASE}/en-GB/retailer/uae-erp/products"
-HEADERS = {"User-Agent": "EmiratesRED-Scraper/3.0 (contact: your_email@example.com)"}
+HEADERS = {"User-Agent": "EmiratesRED-Scraper/3.1 (contact: your_email@example.com)"}
 
 RATE_LIMIT = 1.5  # seconds between requests
 requests_cache.install_cache("emiratesred_cache", expire_after=86400)
@@ -20,9 +20,6 @@ requests_cache.install_cache("emiratesred_cache", expire_after=86400)
 # ----------------------------------------------------------------------
 # HELPERS
 # ----------------------------------------------------------------------
-def slugify(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
-
 def get_soup(url: str):
     """Fetch and parse HTML with retries and SSL ignore"""
     for _ in range(3):
@@ -35,9 +32,7 @@ def get_soup(url: str):
             time.sleep(3)
     return None
 
-# ----------------------------------------------------------------------
-# PAGE PARSERS
-# ----------------------------------------------------------------------
+
 def extract_products_from_listing(url):
     """Extract all product links from a listing page"""
     soup = get_soup(url)
@@ -51,7 +46,6 @@ def extract_products_from_listing(url):
             full_url = urljoin(BASE, href)
             name = a.get_text(" ", strip=True)
             products.append({"name": name, "url": full_url})
-
     return products
 
 
@@ -67,9 +61,27 @@ def extract_product_details(url):
 
     # --- Brand ---
     brand = None
-    brand_tag = soup.select_one("a[href*='/brand/']")
-    if brand_tag:
-        brand = brand_tag.get_text(strip=True)
+    # Primary: data-testid="brandName" or "brandLink"
+    brand_node = soup.select_one("[data-testid='brandName'] a, a[data-testid='brandLink']")
+    if brand_node and brand_node.get_text(strip=True):
+        brand = brand_node.get_text(strip=True)
+    else:
+        # Fallback to /brand/ path
+        fallback_brand = soup.select_one("a[href*='/brand/']")
+        if fallback_brand:
+            candidate = fallback_brand.get_text(strip=True)
+            invalid_brands = [
+                "Emirates", "Emirates Red", "Emirates Exclusives",
+                "Emirates Exclusive", "Bestsellers", "Top Picks",
+                "Travel Exclusives", "Exclusives"
+            ]
+            if candidate and candidate not in invalid_brands:
+                brand = candidate
+        # Meta brand fallback
+        if not brand:
+            meta_brand = soup.find("meta", attrs={"property": "product:brand"})
+            if meta_brand and meta_brand.get("content"):
+                brand = meta_brand["content"].strip()
 
     # --- Price ---
     text = soup.get_text(" ", strip=True)
@@ -81,27 +93,21 @@ def extract_product_details(url):
 
     # --- Description ---
     description = None
-
-    # ✅ Primary: React richtext component
     desc_block = soup.find(attrs={"data-testid": "productDescriptionRichtext"})
     if desc_block and desc_block.get_text(strip=True):
         description = desc_block.get_text(" ", strip=True)
     else:
         # Secondary selectors
         selectors = [
-            ".product-description",
-            ".description",
-            "#tab-description",
-            "section.description",
-            "div#description",
+            ".product-description", ".description", "#tab-description",
+            "section.description", "div#description"
         ]
         for sel in selectors:
             node = soup.select_one(sel)
             if node and node.get_text(strip=True):
                 description = node.get_text(" ", strip=True)
                 break
-
-        # Fallback: longest <p> tag
+        # Fallback: longest paragraph
         if not description:
             paragraphs = [
                 p.get_text(" ", strip=True)
@@ -124,7 +130,7 @@ def extract_product_details(url):
             images.append(src)
     images = list(dict.fromkeys(images))  # dedupe
 
-    # --- Categories from breadcrumbs ---
+    # --- Categories ---
     categories = []
     for crumb in soup.select("nav a, ul.breadcrumb a"):
         if "/category/" in crumb.get("href", ""):
@@ -141,6 +147,7 @@ def extract_product_details(url):
         "categories": categories,
     }
 
+
 # ----------------------------------------------------------------------
 # MAIN SCRAPER
 # ----------------------------------------------------------------------
@@ -152,7 +159,6 @@ def main():
 
     with open("emiratesred_products.jsonl", "w", encoding="utf-8") as f:
         while True:
-            # Construct URL for each page
             page_url = f"{MASTER_URL}?page={page_num}" if page_num > 1 else MASTER_URL
             print(f"\n[PAGE {page_num}] {page_url}")
 
@@ -164,15 +170,16 @@ def main():
             print(f"  → Found {len(items)} products on this page")
 
             for item in tqdm(items, desc=f"Scraping Page {page_num}", leave=False):
-                pid = slugify(item["url"])
-                if pid in seen:
+                # Avoid duplicates
+                if item["url"] in seen:
                     continue
-                seen.add(pid)
+                seen.add(item["url"])
+
                 details = extract_product_details(item["url"])
                 total_products += 1
 
                 record = {
-                    "id": pid,
+                    "id": "",  # kept intentionally blank
                     "name": details.get("name") or item["name"],
                     "brand": details.get("brand"),
                     "categories": details.get("categories"),
@@ -196,13 +203,14 @@ def main():
     print(f"\n✅ Completed: {total_products} total products scraped.")
     print("✅ Saved emiratesred_products.jsonl")
 
-    # Convert to JSON array for analytics
+    # Convert JSONL → JSON array
     with open("emiratesred_products.jsonl", "r", encoding="utf-8") as infile:
         data = [json.loads(line) for line in infile]
     with open("emiratesred_products.json", "w", encoding="utf-8") as outfile:
         json.dump(data, outfile, ensure_ascii=False, indent=2)
 
     print("✅ Also saved emiratesred_products.json (array format)")
+
 
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
